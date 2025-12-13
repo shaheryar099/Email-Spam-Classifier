@@ -1,49 +1,44 @@
 import streamlit as st
 import pickle
+import re
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import PorterStemmer
-import string
 
-nltk.download('punkt')
+# Download required NLTK data (safe)
 nltk.download('stopwords')
 
+# Initialize stemmer and stopwords
 ps = PorterStemmer()
+STOPWORDS = set(stopwords.words('english'))
 
+# Text preprocessing function
 def trans_case(text):
     text = text.lower()
-    tokens = nltk.word_tokenize(text)
+    tokens = re.findall(r'\b\w+\b', text)
 
-    x = []
-    for i in tokens:
-        if i.isalnum():
-            x.append(i)
+    filtered_words = []
+    for word in tokens:
+        if word not in STOPWORDS:
+            filtered_words.append(ps.stem(word))
 
-    y = []
-    for i in x:
-        if i not in stopwords.words('english'):
-            y.append(i)
+    return ' '.join(filtered_words)
 
-    z = []
-    for i in y:
-        z.append(ps.stem(i))
+# Load model and vectorizer
+tfid = pickle.load(open('vectorizer.pkl', 'rb'))
+model = pickle.load(open('model.pkl', 'rb'))
 
-    return ' '.join(z)
+# Streamlit UI
+st.title('📧 Email Spam Classifier')
 
-tfid = pickle.load(open('vectorizer.pkl','rb'))
-model = pickle.load(open('model.pkl','rb'))
-
-st.title('Email Spam Classifier')
-sms = st.text_area('Enter Text', help='Enter SMS')
+sms = st.text_area('Enter the message')
 
 if st.button('Predict'):
-    
-    text_input = trans_case(sms)
-    vector_input = tfid.transform([text_input])
+    processed_text = trans_case(sms)
+    vector_input = tfid.transform([processed_text])
     result = model.predict(vector_input)[0]
-    
+
     if result == 1:
-        st.header('Spam')
+        st.error('🚨 Spam Message')
     else:
-        st.header('Not Spam')
-    
+        st.success('✅ Not Spam')
